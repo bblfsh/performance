@@ -9,13 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bblfsh/performance"
+	"github.com/bblfsh/performance/docker"
+	"github.com/bblfsh/performance/storage"
+	"github.com/bblfsh/performance/storage/influxdb"
+	"github.com/bblfsh/performance/storage/prom-pushgateway"
+	"github.com/bblfsh/performance/storage/std"
+
 	"github.com/bblfsh/go-client/v4"
-	"github.com/bblfsh/performance/util"
-	"github.com/bblfsh/performance/util/docker"
-	"github.com/bblfsh/performance/util/storage"
-	"github.com/bblfsh/performance/util/storage/influxdb"
-	"github.com/bblfsh/performance/util/storage/prom-pushgateway"
-	"github.com/bblfsh/performance/util/storage/std"
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/benchmark/parse"
 	"gopkg.in/src-d/go-errors.v1"
@@ -27,9 +28,9 @@ const prefix = "bench_"
 var (
 	errGrpcClient      = errors.NewKind("cannot get grpc client")
 	errGetFiles        = errors.NewKind("cannot get files")
-	errBenchmark       = errors.NewKind("cannot perform benchmark over the file %s: %v")
+	errBenchmark       = errors.NewKind("cannot perform benchmark over the file %v: %v")
 	errNoFilesDetected = errors.NewKind("no files detected")
-	errWarmUpFailed    = errors.NewKind("warmup for file %s has failed: %v")
+	errWarmUpFailed    = errors.NewKind("warmup for file %v has failed: %v")
 )
 
 // TODO(lwsanty): https://github.com/bblfsh/performance/issues/2
@@ -57,7 +58,7 @@ export INFLUX_PASSWORD=""
 export INFLUX_DB=mydb
 export INFLUX_MEASUREMENT=benchmark
 bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" --storage="influxdb" /var/testdata/benchmarks`,
-		RunE: util.RunESilenced(func(cmd *cobra.Command, args []string) error {
+		RunE: performance.RunESilenced(func(cmd *cobra.Command, args []string) error {
 			language, _ := cmd.Flags().GetString("language")
 			commit, _ := cmd.Flags().GetString("commit")
 			extension, _ := cmd.Flags().GetString("extension")
@@ -102,7 +103,7 @@ bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" -
 			}
 			defer client.Close()
 
-			files, err := util.GetFiles(prefix, extension, args...)
+			files, err := performance.GetFiles(prefix, extension, args...)
 			if err != nil {
 				return errGetFiles.Wrap(err)
 			} else if len(files) == 0 {
@@ -124,7 +125,7 @@ bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" -
 				if err != nil {
 					return errBenchmark.New(f, err)
 				}
-				benchmarks = append(benchmarks, util.BenchmarkResultToParseBenchmark(f, bRes))
+				benchmarks = append(benchmarks, performance.BenchmarkResultToParseBenchmark(f, bRes))
 			}
 
 			// store data
@@ -137,7 +138,7 @@ bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" -
 			if err := storageClient.Dump(map[string]string{
 				"language": language,
 				"commit":   commit,
-				"level":    util.BblfshdLevel,
+				"level":    performance.BblfshdLevel,
 			}, benchmarks...); err != nil {
 				return err
 			}

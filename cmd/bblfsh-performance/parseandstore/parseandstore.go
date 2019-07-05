@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bblfsh/performance/util"
-	"github.com/bblfsh/performance/util/storage"
-	"github.com/bblfsh/performance/util/storage/influxdb"
-	"github.com/bblfsh/performance/util/storage/prom-pushgateway"
-	"github.com/bblfsh/performance/util/storage/std"
+	"github.com/bblfsh/performance"
+	"github.com/bblfsh/performance/storage"
+	"github.com/bblfsh/performance/storage/influxdb"
+	"github.com/bblfsh/performance/storage/prom-pushgateway"
+	"github.com/bblfsh/performance/storage/std"
+
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/benchmark/parse"
 )
@@ -35,7 +36,7 @@ export INFLUX_PASSWORD=""
 export INFLUX_DB=mydb
 export INFLUX_MEASUREMENT=benchmark
 bblfsh-performance parse-and-store --language=go --commit=3d9682b --storage="influxdb" /var/log/bench0 /var/log/bench1`,
-		RunE: util.RunESilenced(func(cmd *cobra.Command, args []string) error {
+		RunE: performance.RunESilenced(func(cmd *cobra.Command, args []string) error {
 			language, _ := cmd.Flags().GetString("language")
 			commit, _ := cmd.Flags().GetString("commit")
 			stor, _ := cmd.Flags().GetString("storage")
@@ -55,7 +56,7 @@ bblfsh-performance parse-and-store --language=go --commit=3d9682b --storage="inf
 				if err := c.Dump(map[string]string{
 					"language": language,
 					"commit":   commit,
-					"level":    util.TransformsLevel,
+					"level":    performance.TransformsLevel,
 				}, benchmarks...); err != nil {
 					return err
 				}

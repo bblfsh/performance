@@ -14,14 +14,14 @@ const (
 	PerOpAllocs = "per_op_allocs"
 )
 
-// Constructor is a type that represents function of default storage client constructor
-type Constructor func() (Client, error)
+// constructor is a type that represents function of default storage client constructor
+type constructor func() (Client, error)
 
 var (
-	// Constructors is a map of all supported storage client constructors
-	Constructors = make(map[string]Constructor)
+	// constructors is a map of all supported storage client constructors
+	constructors = make(map[string]constructor)
 
-	errNotSupported = errors.NewKind("storage kind %s is not supported")
+	errNotSupported = errors.NewKind("storage kind %v is not supported")
 )
 
 // Client is an interface for storage clients
@@ -33,8 +33,8 @@ type Client interface {
 }
 
 // Register updates the map of known storage clients constructors
-func Register(kind string, c Constructor) {
-	Constructors[kind] = c
+func Register(kind string, c constructor) {
+	constructors[kind] = c
 }
 
 // NewClient takes a given kind and creates related storage client
@@ -50,8 +50,8 @@ func NewClient(kind string) (Client, error) {
 // This method should be useful when long-term tests are performed
 // so kind can be checked much earlier then storage client acquired
 // and prevent the situation when tests passed and store failed because kind is not supported
-func ValidateKind(kind string) (Constructor, error) {
-	c, ok := Constructors[kind]
+func ValidateKind(kind string) (constructor, error) {
+	c, ok := constructors[kind]
 	if !ok {
 		return nil, errNotSupported.New(kind)
 	}

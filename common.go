@@ -1,4 +1,4 @@
-package util
+package performance
 
 import (
 	"path/filepath"
