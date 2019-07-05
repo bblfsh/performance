@@ -1,15 +1,16 @@
 package prom_pushgateway
 
 import (
-	"github.com/bblfsh/performance/util"
-	"github.com/bblfsh/performance/util/storage"
+	"time"
+
+	"github.com/bblfsh/performance"
+	"github.com/bblfsh/performance/storage"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/src-d/envconfig"
-	"golang.org/x/tools/benchmark/parse"
+	"gopkg.in/src-d/go-log.v1"
 )
-
-// TODO logs, comments, commands doc
 
 // Kind is a string that represents prometheus pushgateway
 const Kind = "prom"
@@ -39,20 +40,24 @@ func NewClient() (storage.Client, error) {
 }
 
 // Dump stores given benchmark results with tags to prometheus pushgateway
-func (c *promClient) Dump(tags map[string]string, benchmarks ...*parse.Benchmark) error {
-	labels, values := util.SplitStringMap(tags)
+func (c *promClient) Dump(tags map[string]string, benchmarks ...performance.Benchmark) error {
+	labels, values := performance.SplitStringMap(tags)
 	labels = append([]string{"name"}, labels...)
 
+	log.Debugf("getting metrics")
 	metrics := getMetrics(labels)
 	for _, b := range benchmarks {
-		tmpValues := append([]string{util.ParseBenchmarkName(b.Name)}, values...)
+		tmpValues := append([]string{b.Name}, values...)
 
-		metrics[storage.PerOpSeconds].WithLabelValues(tmpValues...).Observe(float64(b.NsPerOp / 1e9))
+		log.Debugf("observing for the benchmark: %+v", b)
+		metrics[storage.PerOpSeconds].WithLabelValues(tmpValues...).Observe(float64(time.Duration(b.NsPerOp).Seconds()))
 		metrics[storage.PerOpAllocBytes].WithLabelValues(tmpValues...).Observe(float64(b.AllocedBytesPerOp))
 		metrics[storage.PerOpAllocs].WithLabelValues(tmpValues...).Observe(float64(b.AllocsPerOp))
 	}
 
+	log.Debugf("adding metrics to the pusher")
 	c.collector(metrics)
+	log.Debugf("pushing metrics")
 	return c.Add()
 }
 

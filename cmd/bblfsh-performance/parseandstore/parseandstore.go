@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bblfsh/performance/util"
-	"github.com/bblfsh/performance/util/storage"
-	"github.com/bblfsh/performance/util/storage/influxdb"
-	"github.com/bblfsh/performance/util/storage/prom-pushgateway"
-	"github.com/bblfsh/performance/util/storage/std"
+	"github.com/bblfsh/performance"
+	"github.com/bblfsh/performance/storage"
+	"github.com/bblfsh/performance/storage/file"
+	"github.com/bblfsh/performance/storage/influxdb"
+	"github.com/bblfsh/performance/storage/prom-pushgateway"
+
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/benchmark/parse"
 )
@@ -35,7 +36,7 @@ export INFLUX_PASSWORD=""
 export INFLUX_DB=mydb
 export INFLUX_MEASUREMENT=benchmark
 bblfsh-performance parse-and-store --language=go --commit=3d9682b --storage="influxdb" /var/log/bench0 /var/log/bench1`,
-		RunE: util.RunESilenced(func(cmd *cobra.Command, args []string) error {
+		RunE: performance.RunESilenced(func(cmd *cobra.Command, args []string) error {
 			language, _ := cmd.Flags().GetString("language")
 			commit, _ := cmd.Flags().GetString("commit")
 			stor, _ := cmd.Flags().GetString("storage")
@@ -55,7 +56,7 @@ bblfsh-performance parse-and-store --language=go --commit=3d9682b --storage="inf
 				if err := c.Dump(map[string]string{
 					"language": language,
 					"commit":   commit,
-					"level":    util.TransformsLevel,
+					"level":    performance.TransformsLevel,
 				}, benchmarks...); err != nil {
 					return err
 				}
@@ -70,25 +71,30 @@ bblfsh-performance parse-and-store --language=go --commit=3d9682b --storage="inf
 	flags.StringP("language", "l", "", "name of the language to be tested")
 	flags.StringP("commit", "c", "", "commit id that's being tested and will be used as a tag in performance report")
 	flags.StringP("storage", "s", prom_pushgateway.Kind, "storage kind to store the results"+
-		fmt.Sprintf("(%s, %s, %s)", prom_pushgateway.Kind, influxdb.Kind, std.Kind))
+		fmt.Sprintf("(%s, %s, %s)", prom_pushgateway.Kind, influxdb.Kind, file.Kind))
 
 	return cmd
 }
 
-func getBenchmarks(path string) ([]*parse.Benchmark, error) {
+func getBenchmarks(path string) ([]performance.Benchmark, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	var result []*parse.Benchmark
+	var result []performance.Benchmark
 	set, err := parse.ParseSet(f)
 	if err != nil {
 		return nil, err
 	}
 	for _, s := range set {
-		result = append(result, s...)
+		var benchmarkSet []performance.Benchmark
+		for _, b := range s {
+			benchmarkSet = append(benchmarkSet, performance.NewBenchmark(b))
+		}
+
+		result = append(result, benchmarkSet...)
 	}
 	return result, nil
 }

@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"golang.org/x/tools/benchmark/parse"
+	"github.com/bblfsh/performance"
 	"gopkg.in/src-d/go-errors.v1"
 )
 
@@ -14,27 +14,27 @@ const (
 	PerOpAllocs = "per_op_allocs"
 )
 
-// Constructor is a type that represents function of default storage client constructor
+// Constructor is a type that represents function of default storage client Constructor
 type Constructor func() (Client, error)
 
 var (
-	// Constructors is a map of all supported storage client constructors
-	Constructors = make(map[string]Constructor)
+	// constructors is a map of all supported storage client constructors
+	constructors = make(map[string]Constructor)
 
-	errNotSupported = errors.NewKind("storage kind %s is not supported")
+	errNotSupported = errors.NewKind("storage kind %v is not supported")
 )
 
 // Client is an interface for storage clients
 type Client interface {
 	// Dump stores given benchmark results with tags to storage
-	Dump(tags map[string]string, benchmarks ...*parse.Benchmark) error
+	Dump(tags map[string]string, benchmarks ...performance.Benchmark) error
 	// Close closes client's connection to the storage if needed
 	Close() error
 }
 
 // Register updates the map of known storage clients constructors
 func Register(kind string, c Constructor) {
-	Constructors[kind] = c
+	constructors[kind] = c
 }
 
 // NewClient takes a given kind and creates related storage client
@@ -51,7 +51,7 @@ func NewClient(kind string) (Client, error) {
 // so kind can be checked much earlier then storage client acquired
 // and prevent the situation when tests passed and store failed because kind is not supported
 func ValidateKind(kind string) (Constructor, error) {
-	c, ok := Constructors[kind]
+	c, ok := constructors[kind]
 	if !ok {
 		return nil, errNotSupported.New(kind)
 	}

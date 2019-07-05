@@ -34,10 +34,10 @@ Flags:
   -c, --commit string     commit id that's being tested and will be used as a tag in performance report
   -h, --help              help for parse-and-store
   -l, --language string   name of the language to be tested
-  -s, --storage string    storage kind to store the results(prom, influxdb, std) (default "prom")
+  -s, --storage string    storage kind to store the results(prom, influxdb, file) (default "prom")
 ```
 
-#####Command usage
+##### Command usage
 Either locally or in CI:
 1) pull driver repo
 2) perform benchmarks over the fixtures
@@ -81,5 +81,5 @@ Flags:
   -e, --extension string    file extension to be filtered
   -h, --help                help for end-to-end
   -l, --language string     name of the language to be tested
-  -s, --storage string      storage kind to store the results(prom, influxdb, std) (default "prom")
+  -s, --storage string      storage kind to store the results(prom, influxdb, file) (default "prom")
 ```
