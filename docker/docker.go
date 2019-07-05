@@ -4,7 +4,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/bblfsh/performance/util"
+	"github.com/bblfsh/performance"
+
 	"github.com/ory/dockertest"
 	"github.com/ory/dockertest/docker"
 	"gopkg.in/src-d/go-errors.v1"
@@ -12,7 +13,7 @@ import (
 )
 
 const (
-	// TODO(lwsanty): maybe we need to run container in stateless mode and install driver version that we want
+	// TODO(lwsanty): maybe we need to run container in the stateless mode and install driver version that we want
 	// bblfshd default configuration
 	bblfshdImage     = "bblfsh/bblfshd"
 	bblfshdContainer = "bblfshd-perf"
@@ -23,7 +24,7 @@ var (
 	errRunFailed             = errors.NewKind("cannot run bblfshd container")
 	errConnectToDockerFailed = errors.NewKind("could not connect to docker")
 	errResourceStartFailed   = errors.NewKind("could not start resource")
-	errPortWaitTimeout       = errors.NewKind("could not wait until port %d is enabled")
+	errPortWaitTimeout       = errors.NewKind("could not wait until port %v is enabled")
 )
 
 // RunBblfshd pulls and runs bblfshd container with a given tag, waits until the port is ready and returns
@@ -50,18 +51,17 @@ func RunBblfshd(tag string) (string, func(), error) {
 	}
 
 	addr := resource.GetHostPort(bblfshdPort + "/tcp")
-	log.Debugf("addr used: %s\n", addr)
+	log.Debugf("addr used: %s", addr)
 	if err := pool.Retry(func() error {
 		conn, err := net.DialTimeout("tcp", addr, time.Second/4)
 		if err == nil {
 			conn.Close()
 			return nil
 		}
-		return nil
+		return wrapErr(errPortWaitTimeout.New(bblfshdPort))
 	}); err != nil {
-		return "", nil, wrapErr(errPortWaitTimeout.New(bblfshdPort))
+		return "", nil, err
 	}
-
 	return addr, func() {
 		if err := pool.Purge(resource); err != nil {
 			log.Errorf(err, "could not purge resource: %s", resource.Container.Name)
@@ -70,5 +70,5 @@ func RunBblfshd(tag string) (string, func(), error) {
 }
 
 func wrapErr(err error, kinds ...*errors.Kind) error {
-	return errRunFailed.Wrap(util.WrapErr(err, kinds...))
+	return errRunFailed.Wrap(performance.WrapErr(err, kinds...))
 }

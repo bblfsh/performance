@@ -6,6 +6,10 @@ import (
 
 	"github.com/bblfsh/performance/cmd/bblfsh-performance/endtoend"
 	"github.com/bblfsh/performance/cmd/bblfsh-performance/parseandstore"
+	_ "github.com/bblfsh/performance/storage/file"
+	_ "github.com/bblfsh/performance/storage/influxdb"
+	_ "github.com/bblfsh/performance/storage/prom-pushgateway"
+
 	"github.com/spf13/cobra"
 )
 
