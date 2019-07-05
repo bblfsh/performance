@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	// TODO(lwsanty): maybe we need to run container in stateless mode and install driver version that we want
+	// TODO(lwsanty): maybe we need to run container in the stateless mode and install driver version that we want
 	// bblfshd default configuration
 	bblfshdImage     = "bblfsh/bblfshd"
 	bblfshdContainer = "bblfshd-perf"
@@ -23,7 +23,7 @@ var (
 	errRunFailed             = errors.NewKind("cannot run bblfshd container")
 	errConnectToDockerFailed = errors.NewKind("could not connect to docker")
 	errResourceStartFailed   = errors.NewKind("could not start resource")
-	errPortWaitTimeout       = errors.NewKind("could not wait until port %d is enabled")
+	errPortWaitTimeout       = errors.NewKind("could not wait until port %s is enabled")
 )
 
 // RunBblfshd pulls and runs bblfshd container with a given tag, waits until the port is ready and returns

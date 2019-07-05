@@ -1,121 +1,60 @@
 package storage
 
 import (
-	"strings"
-	"time"
-
-	"github.com/orourkedd/influxdb1-client/client"
-	"github.com/src-d/envconfig"
 	"golang.org/x/tools/benchmark/parse"
 	"gopkg.in/src-d/go-errors.v1"
-	"gopkg.in/src-d/go-log.v1"
 )
 
-const envPrefix = "influx"
+const (
+	// PerOpSeconds represents metric of seconds per operation
+	PerOpSeconds = "per_op_seconds"
+	// PerOpAllocBytes represents metric of bytes allocated per operation
+	PerOpAllocBytes = "per_op_alloc_bytes"
+	// PerOpAllocs represents metric of allocations per operation
+	PerOpAllocs = "per_op_allocs"
+)
 
-// InfluxClient embeds influxdb client itself and also contains the configuration info
-type InfluxClient struct {
-	client.Client
-	influxConfig influxConfig
-}
-
-type influxConfig struct {
-	Address  string
-	Username string
-	Password string
-	Db       string
-	// Measurement acts as a container for tags, fields, and the time column, and the measurement name is the description of the data that are stored in the associated fields.
-	// Measurement names are strings, and, for any SQL users out there, a measurement is conceptually similar to a table.
-	Measurement string
-}
+// Constructor is a type that represents function of default storage client constructor
+type Constructor func() (Client, error)
 
 var (
-	errGetClientFailed = errors.NewKind("cannot get influx db client")
-	errDumpFailed      = errors.NewKind("cannot dump batch points")
+	// Constructors is a map of all supported storage client constructors
+	Constructors = make(map[string]Constructor)
+
+	errNotSupported = errors.NewKind("storage kind %s is not supported")
 )
 
-// TODO(lwsanty): client should become interface in the future to support several storages
-// NewClient is a constructor for InfluxClient, uses environment variables to get influxConfig
-func NewClient() (*InfluxClient, error) {
-	var influxConfig influxConfig
-	if err := envconfig.Process(envPrefix, &influxConfig); err != nil {
-		return nil, err
-	}
-
-	c, err := influxDBClient(influxConfig)
-	if err != nil {
-		return nil, errGetClientFailed.Wrap(err)
-	}
-
-	return &InfluxClient{
-		Client:       c,
-		influxConfig: influxConfig,
-	}, nil
+// Client is an interface for storage clients
+type Client interface {
+	// Dump stores given benchmark results with tags to storage
+	Dump(tags map[string]string, benchmarks ...*parse.Benchmark) error
+	// Close closes client's connection to the storage if needed
+	Close() error
 }
 
-// Dump stores given benchmark results with tags to influxdb
-func (c *InfluxClient) Dump(tags map[string]string, benchmarks ...*parse.Benchmark) error {
-	wrapErr := func(err error) error { return errDumpFailed.Wrap(err) }
-
-	if tags == nil {
-		tags = make(map[string]string)
-	}
-
-	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  c.influxConfig.Db,
-		Precision: "s",
-	})
-	if err != nil {
-		return wrapErr(err)
-	}
-
-	eventTime := time.Now()
-	for _, b := range benchmarks {
-		tags["name"] = parseBenchmarkName(b.Name)
-		fields := map[string]interface{}{
-			"n":              b.N,
-			"per_op_seconds": b.NsPerOp / 1e9,
-			// https://github.com/influxdata/influxdb/issues/7801
-			"per_op_alloc_bytes": int(b.AllocedBytesPerOp),
-			"per_op_alloc":       int(b.AllocsPerOp),
-		}
-
-		point, err := client.NewPoint(
-			c.influxConfig.Measurement,
-			tags,
-			fields,
-			eventTime,
-		)
-		if err != nil {
-			return wrapErr(err)
-		}
-		log.Debugf("batch -> add point %+v\n", point)
-		bp.AddPoint(point)
-	}
-	if err := c.Write(bp); err != nil {
-		return wrapErr(err)
-	}
-
-	return nil
+// Register updates the map of known storage clients constructors
+func Register(kind string, c Constructor) {
+	Constructors[kind] = c
 }
 
-func influxDBClient(conf influxConfig) (client.Client, error) {
-	c, err := client.NewHTTPClient(client.HTTPConfig{
-		Addr:     conf.Address,
-		Username: conf.Username,
-		Password: conf.Password,
-	})
+// NewClient takes a given kind and creates related storage client
+func NewClient(kind string) (Client, error) {
+	c, err := ValidateKind(kind)
 	if err != nil {
 		return nil, err
 	}
+	return c()
+}
+
+// ValidateKind checks if a given kind is supported
+// This method should be useful when long-term tests are performed
+// so kind can be checked much earlier then storage client acquired
+// and prevent the situation when tests passed and store failed because kind is not supported
+func ValidateKind(kind string) (Constructor, error) {
+	c, ok := Constructors[kind]
+	if !ok {
+		return nil, errNotSupported.New(kind)
+	}
+
 	return c, nil
-}
-
-func parseBenchmarkName(name string) string {
-	spl := strings.Split(name, "/")
-	name = spl[len(spl)-1]
-	for _, s := range []string{"-", "."} {
-		name = strings.Split(name, s)[0]
-	}
-	return name
 }

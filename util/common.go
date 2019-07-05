@@ -2,6 +2,7 @@ package util
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -57,6 +58,17 @@ func BenchmarkResultToParseBenchmark(name string, b *testing.BenchmarkResult) *p
 	}
 }
 
+// ParseBenchmarkName removes the path and suffixes from benchmark info
+// Example: BenchmarkGoDriver/transform/accumulator_factory-4 -> accumulator_factory
+func ParseBenchmarkName(name string) string {
+	spl := strings.Split(name, "/")
+	name = spl[len(spl)-1]
+	for _, s := range []string{"-", "."} {
+		name = strings.Split(name, s)[0]
+	}
+	return name
+}
+
 // WrapErr wraps given error with a given amount of error kinds. Works in inside-to-outside direction
 func WrapErr(err error, kinds ...*errors.Kind) error {
 	if err == nil {
@@ -66,4 +78,17 @@ func WrapErr(err error, kinds ...*errors.Kind) error {
 		err = k.Wrap(err)
 	}
 	return err
+}
+
+// SplitStringMap splits map[string]string to arrays of keys and arrays of values
+func SplitStringMap(m map[string]string) ([]string, []string) {
+	var (
+		keys   []string
+		values []string
+	)
+	for k, v := range m {
+		keys = append(keys, k)
+		values = append(values, v)
+	}
+	return keys, values
 }

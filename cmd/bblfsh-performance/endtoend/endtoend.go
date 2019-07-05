@@ -2,6 +2,7 @@ package endtoend
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -12,6 +13,9 @@ import (
 	"github.com/bblfsh/performance/util"
 	"github.com/bblfsh/performance/util/docker"
 	"github.com/bblfsh/performance/util/storage"
+	"github.com/bblfsh/performance/util/storage/influxdb"
+	"github.com/bblfsh/performance/util/storage/prom-pushgateway"
+	"github.com/bblfsh/performance/util/storage/std"
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/benchmark/parse"
 	"gopkg.in/src-d/go-errors.v1"
@@ -32,25 +36,36 @@ var (
 // Cmd return configured end to end command
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "end-to-end [--language=<language>] [--commit=<commit-id>] [--extension=<files-extension>] [--docker-tag=<docker-tag>] <directory ...>",
+		Use:     "end-to-end [--language=<language>] [--commit=<commit-id>] [--extension=<files-extension>] [--docker-tag=<docker-tag>] [--storage=<storage>] <directory ...>",
 		Aliases: []string{"e2e"},
 		Args:    cobra.MinimumNArgs(1),
-		Short:   "run bblfshd container and perform benchmark tests, store results in influx db",
+		Short:   "run bblfshd container and perform benchmark tests, store results into a given storage",
 		Example: `To use external bblfshd set BBLFSHD_LOCAL=${bblfshd_address}
 
-WARNING! To access influx db corresponding environment variables should be set.
-Full example of usage script is the following:
+WARNING! To access storage corresponding environment variables should be set.
+Full examples of usage scripts are following:
 
+# for prometheus pushgateway
+export PROM_ADDRESS="localhost:9091"
+export PROM_JOB=pushgateway
+./bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" --storage="prom" /var/testdata/benchmarks
+
+# for influx db
 export INFLUX_ADDRESS="http://localhost:8086"
 export INFLUX_USERNAME=""
 export INFLUX_PASSWORD=""
 export INFLUX_DB=mydb
 export INFLUX_MEASUREMENT=benchmark
-bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" /var/testdata/benchmarks`,
+bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" --storage="influxdb" /var/testdata/benchmarks`,
 		RunE: util.RunESilenced(func(cmd *cobra.Command, args []string) error {
 			language, _ := cmd.Flags().GetString("language")
 			commit, _ := cmd.Flags().GetString("commit")
 			extension, _ := cmd.Flags().GetString("extension")
+			stor, _ := cmd.Flags().GetString("storage")
+
+			if _, err := storage.ValidateKind(stor); err != nil {
+				return err
+			}
 
 			// for debug purposes with externally spinning container
 			containerAddress := os.Getenv("BBLFSHD_LOCAL")
@@ -113,7 +128,7 @@ bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" /
 			}
 
 			// store data
-			storageClient, err := storage.NewClient()
+			storageClient, err := storage.NewClient(stor)
 			if err != nil {
 				return err
 			}
@@ -136,6 +151,8 @@ bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" /
 	flags.StringP("commit", "c", "", "commit id that's being tested and will be used as a tag in performance report")
 	flags.StringP("extension", "e", "", "file extension to be filtered")
 	flags.StringP("docker-tag", "t", "latest-drivers", "bblfshd docker image tag to be tested")
+	flags.StringP("storage", "s", prom_pushgateway.Kind, "storage kind to store the results"+
+		fmt.Sprintf("(%s, %s, %s)", prom_pushgateway.Kind, influxdb.Kind, std.Kind))
 
 	return cmd
 }
