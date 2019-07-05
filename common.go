@@ -1,7 +1,8 @@
-package util
+package performance
 
 import (
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -21,6 +22,39 @@ const (
 	// TransformsLevel is a metrics tag that represents benchmarks being run over transformations layer
 	TransformsLevel = "transforms"
 )
+
+// Benchmark is a wrapper around parse.Benchmark and serves for formatting and arranging data before storing
+type Benchmark struct {
+	parse.Benchmark
+}
+
+// NewBenchmark is a constructor for Benchmark
+func NewBenchmark(pb *parse.Benchmark) Benchmark {
+	pb.Name = parseBenchmarkName(pb.Name)
+	return Benchmark{*pb}
+}
+
+// BenchmarkResultToBenchmark converts b *testing.BenchmarkResult *parse.Benchmark for further storing
+func BenchmarkResultToBenchmark(name string, b *testing.BenchmarkResult) Benchmark {
+	return NewBenchmark(&parse.Benchmark{
+		Name:              name,
+		N:                 b.N,
+		NsPerOp:           float64(b.NsPerOp()),
+		AllocedBytesPerOp: uint64(b.AllocedBytesPerOp()),
+		AllocsPerOp:       uint64(b.AllocsPerOp()),
+	})
+}
+
+// parseBenchmarkName removes the path and suffixes from benchmark info
+// Example: BenchmarkGoDriver/transform/accumulator_factory-4 -> accumulator_factory
+func parseBenchmarkName(name string) string {
+	spl := strings.Split(name, "/")
+	name = spl[len(spl)-1]
+	for _, s := range []string{"-", "."} {
+		name = strings.Split(name, s)[0]
+	}
+	return name
+}
 
 // TODO(lwsanty): https://github.com/spf13/cobra/issues/340
 // RunESilenced is a wrapper over standard cobra's RunE function
@@ -47,28 +81,6 @@ func GetFiles(pref, ext string, dirs ...string) ([]string, error) {
 	return res, nil
 }
 
-// BenchmarkResultToParseBenchmark converts b *testing.BenchmarkResult *parse.Benchmark for further storing
-func BenchmarkResultToParseBenchmark(name string, b *testing.BenchmarkResult) *parse.Benchmark {
-	return &parse.Benchmark{
-		Name:              name,
-		N:                 b.N,
-		NsPerOp:           float64(b.NsPerOp()),
-		AllocedBytesPerOp: uint64(b.AllocedBytesPerOp()),
-		AllocsPerOp:       uint64(b.AllocsPerOp()),
-	}
-}
-
-// ParseBenchmarkName removes the path and suffixes from benchmark info
-// Example: BenchmarkGoDriver/transform/accumulator_factory-4 -> accumulator_factory
-func ParseBenchmarkName(name string) string {
-	spl := strings.Split(name, "/")
-	name = spl[len(spl)-1]
-	for _, s := range []string{"-", "."} {
-		name = strings.Split(name, s)[0]
-	}
-	return name
-}
-
 // WrapErr wraps given error with a given amount of error kinds. Works in inside-to-outside direction
 func WrapErr(err error, kinds ...*errors.Kind) error {
 	if err == nil {
@@ -86,9 +98,16 @@ func SplitStringMap(m map[string]string) ([]string, []string) {
 		keys   []string
 		values []string
 	)
-	for k, v := range m {
+	for k := range m {
 		keys = append(keys, k)
-		values = append(values, v)
 	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	for _, k := range keys {
+		values = append(values, m[k])
+	}
+
 	return keys, values
 }
