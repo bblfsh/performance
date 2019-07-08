@@ -1,7 +1,6 @@
 package util
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -12,7 +11,13 @@ import (
 
 type RunE func(cmd *cobra.Command, args []string) error
 
-// https://github.com/spf13/cobra/issues/340
+const (
+	BblfshdLevel         = "bblfshd"
+	DriverLevel          = "driver"
+	TransformationsLevel = "transformations"
+)
+
+// TODO(lwsanty): https://github.com/spf13/cobra/issues/340
 func RunESilenced(f RunE) RunE {
 	return func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -51,11 +56,4 @@ func WrapErr(err error, kinds ...*errors.Kind) error {
 		err = k.Wrap(err)
 	}
 	return err
-}
-
-func GetEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
 }

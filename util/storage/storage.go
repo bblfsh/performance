@@ -1,28 +1,20 @@
 package storage
 
 import (
-	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/orourkedd/influxdb1-client/client"
 	"github.com/src-d/envconfig"
+	"golang.org/x/tools/benchmark/parse"
 	"gopkg.in/src-d/go-errors.v1"
 	"gopkg.in/src-d/go-log.v1"
-	// https://github.com/influxdata/influxdb1-client/issues/5
-	"github.com/orourkedd/influxdb1-client/client"
-	"golang.org/x/tools/benchmark/parse"
 )
 
 const envPrefix = "influx"
 
 type InfluxClient struct {
 	client.Client
-	conf Config
-}
-
-type Config struct {
-	Driver       string
-	Commit       string
 	influxConfig influxConfig
 }
 
@@ -31,7 +23,7 @@ type influxConfig struct {
 	Username string
 	Password string
 	Db       string
-	// The measurement acts as a container for tags, fields, and the time column, and the measurement name is the description of the data that are stored in the associated fields.
+	// Measurement acts as a container for tags, fields, and the time column, and the measurement name is the description of the data that are stored in the associated fields.
 	// Measurement names are strings, and, for any SQL users out there, a measurement is conceptually similar to a table.
 	Measurement string
 }
@@ -41,7 +33,7 @@ var (
 	errDumpFailed      = errors.NewKind("cannot dump batch points")
 )
 
-func NewClient(driver, commit string) (*InfluxClient, error) {
+func NewClient() (*InfluxClient, error) {
 	var influxConfig influxConfig
 	if err := envconfig.Process(envPrefix, &influxConfig); err != nil {
 		return nil, err
@@ -53,20 +45,16 @@ func NewClient(driver, commit string) (*InfluxClient, error) {
 	}
 
 	return &InfluxClient{
-		Client: c,
-		conf: Config{
-			Driver:       driver,
-			Commit:       commit,
-			influxConfig: influxConfig,
-		},
+		Client:       c,
+		influxConfig: influxConfig,
 	}, nil
 }
 
-func (c *InfluxClient) Dump(benchmarks ...*parse.Benchmark) error {
+func (c *InfluxClient) Dump(tags map[string]string, benchmarks ...*parse.Benchmark) error {
 	wrapErr := func(err error) error { return errDumpFailed.Wrap(err) }
 
 	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  c.conf.influxConfig.Db,
+		Database:  c.influxConfig.Db,
 		Precision: "s",
 	})
 	if err != nil {
@@ -75,22 +63,17 @@ func (c *InfluxClient) Dump(benchmarks ...*parse.Benchmark) error {
 
 	eventTime := time.Now()
 	for _, b := range benchmarks {
-		tags := map[string]string{
-			"driver": c.conf.Driver,
-			"name":   parseBenchmarkName(b.Name),
-			"commit": c.conf.Commit,
-		}
-
+		tags["name"] = parseBenchmarkName(b.Name)
 		fields := map[string]interface{}{
-			"n":        b.N,
-			"per_op_s": b.NsPerOp / 1e9,
+			"n":              b.N,
+			"per_op_seconds": b.NsPerOp / 1e9,
 			// https://github.com/influxdata/influxdb/issues/7801
-			"per_op_bytes_alloc": int(b.AllocedBytesPerOp),
+			"per_op_alloc_bytes": int(b.AllocedBytesPerOp),
 			"per_op_alloc":       int(b.AllocsPerOp),
 		}
 
 		point, err := client.NewPoint(
-			c.conf.influxConfig.Measurement,
+			c.influxConfig.Measurement,
 			tags,
 			fields,
 			eventTime,
@@ -121,14 +104,10 @@ func influxDBClient(conf influxConfig) (client.Client, error) {
 }
 
 func parseBenchmarkName(name string) string {
-	spl := strings.SplitAfterN(name, "/", -1)
-	if len(spl) == 0 {
-		return name
-	}
+	spl := strings.Split(name, "/")
 	name = spl[len(spl)-1]
 	for _, s := range []string{"-", "."} {
-		name = strings.Split(filepath.Base(name), s)[0]
+		name = strings.Split(name, s)[0]
 	}
-
 	return name
 }

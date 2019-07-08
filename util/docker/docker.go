@@ -15,7 +15,6 @@ const (
 	// TODO(lwsanty): maybe we need to run container in stateless mode and install driver version that we want
 	// bblfshd default configuration
 	bblfshdImage     = "bblfsh/bblfshd"
-	bblfshdTag       = "latest-drivers"
 	bblfshdContainer = "bblfshd-perf"
 	bblfshdPort      = "9432"
 )
@@ -27,14 +26,12 @@ var (
 	errPortWaitTimeout       = errors.NewKind("could not wait until port %d is enabled")
 )
 
-func Run() (string, func(), error) {
+func RunBblfshd(tag string) (string, func(), error) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		return "", nil, wrapErr(err, errConnectToDockerFailed)
 	}
 
-	tag := util.GetEnv("BBLFSHD_TAG", bblfshdTag)
-	log.Debugf("tag set: %s\n", tag)
 	resource, err := pool.RunWithOptions(
 		&dockertest.RunOptions{
 			Name:         bblfshdContainer,
@@ -51,7 +48,7 @@ func Run() (string, func(), error) {
 	}
 
 	addr := resource.GetHostPort(bblfshdPort + "/tcp")
-	log.Debugf("addr used: %s", addr)
+	log.Debugf("addr used: %s\n", addr)
 	if err := pool.Retry(func() error {
 		conn, err := net.DialTimeout("tcp", addr, time.Second/4)
 		if err == nil {

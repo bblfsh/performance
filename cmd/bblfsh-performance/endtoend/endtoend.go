@@ -31,12 +31,11 @@ var (
 // Cmd return configured end to end command
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "end-to-end [--driver=<language>] [--commit=<commit-id>] [--extension=<files-extension>] <directory ...>",
+		Use:     "end-to-end [--language=<language>] [--commit=<commit-id>] [--extension=<files-extension>] [--docker-tag=<docker-tag>] <directory ...>",
 		Aliases: []string{"e2e"},
 		Args:    cobra.MinimumNArgs(1),
 		Short:   "run bblfshd container and perform benchmark tests, store results in influx db",
 		Example: `To use external bblfshd set BBLFSHD_LOCAL=${bblfshd_address}
-Default bblfshd tag is latest-drivers. To use custom bblfshd tag set BBLFSHD_TAG=${custom_tag}
 
 WARNING! To access influx db corresponding environment variables should be set.
 Full example of usage script is the following:
@@ -46,17 +45,18 @@ export INFLUX_USERNAME=""
 export INFLUX_PASSWORD=""
 export INFLUX_DB=mydb
 export INFLUX_MEASUREMENT=benchmark
-bblfsh-performance end-to-end --driver=go --commit=3d9682b --extension=".go" /var/testdata/benchmarks`,
+bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" /var/testdata/benchmarks`,
 		RunE: util.RunESilenced(func(cmd *cobra.Command, args []string) error {
-			driver, _ := cmd.Flags().GetString("driver")
+			language, _ := cmd.Flags().GetString("language")
 			commit, _ := cmd.Flags().GetString("commit")
 			extension, _ := cmd.Flags().GetString("extension")
 
 			// for debug purposes with externally spinning container
 			containerAddress := os.Getenv("BBLFSHD_LOCAL")
 			if containerAddress == "" {
-				log.Debugf("running bblfshd container\n")
-				addr, closer, err := docker.Run()
+				tag, _ := cmd.Flags().GetString("docker-tag")
+				log.Debugf("running bblfshd %s container\n", tag)
+				addr, closer, err := docker.RunBblfshd(tag)
 				if err != nil {
 					return err
 				}
@@ -81,22 +81,21 @@ bblfsh-performance end-to-end --driver=go --commit=3d9682b --extension=".go" /va
 			}()
 
 			client, err := bblfsh.NewClientContext(ctx, containerAddress)
-			defer client.Close()
 			if err != nil {
 				return errGrpcClient.Wrap(err)
 			}
+			defer client.Close()
 
 			files, err := util.GetFiles(prefix, extension, args...)
 			if err != nil {
 				return errGetFiles.Wrap(err)
-			}
-			if len(files) == 0 {
+			} else if len(files) == 0 {
 				return errNoFilesDetected.New()
 			}
 
 			warmUpFile := files[0]
-			log.Debugf("🔥 warming up the driver %s using file %s", driver, warmUpFile)
-			warmUpTime, err := warmUp(ctx, client, driver, warmUpFile)
+			log.Debugf("🔥 warming up the language %s using file %s\n", language, warmUpFile)
+			warmUpTime, err := warmUp(ctx, client, language, warmUpFile)
 			if err != nil {
 				return errWarmUpFailed.New(warmUpFile, err)
 			}
@@ -105,7 +104,7 @@ bblfsh-performance end-to-end --driver=go --commit=3d9682b --extension=".go" /va
 			var benchmarks []*parse.Benchmark
 			for _, f := range files {
 				log.Debugf("benching file: %s\n", f)
-				bRes, err := benchFile(ctx, client, driver, f)
+				bRes, err := benchFile(ctx, client, language, f)
 				if err != nil {
 					return errBenchmark.New(f, err)
 				}
@@ -113,13 +112,17 @@ bblfsh-performance end-to-end --driver=go --commit=3d9682b --extension=".go" /va
 			}
 
 			// store data
-			storageClient, err := storage.NewClient("bblfshd:"+driver, commit)
-			defer storageClient.Close()
+			storageClient, err := storage.NewClient()
 			if err != nil {
 				return err
 			}
+			defer storageClient.Close()
 
-			if err := storageClient.Dump(benchmarks...); err != nil {
+			if err := storageClient.Dump(map[string]string{
+				"language": language,
+				"commit":   commit,
+				"level":    util.BblfshdLevel,
+			}, benchmarks...); err != nil {
 				return err
 			}
 
@@ -128,33 +131,34 @@ bblfsh-performance end-to-end --driver=go --commit=3d9682b --extension=".go" /va
 	}
 
 	flags := cmd.Flags()
-	flags.StringP("driver", "d", "", "name of the language current driver relates to")
+	flags.StringP("language", "l", "", "name of the language to be tested")
 	flags.StringP("commit", "c", "", "commit id that's being tested and will be used as a tag in performance report")
 	flags.StringP("extension", "e", "", "file extension to be filtered")
+	flags.StringP("docker-tag", "t", "latest-drivers", "bblfshd docker image tag to be tested")
 
 	return cmd
 }
 
-func warmUp(ctx context.Context, c *bblfsh.Client, driver string, path string) (time.Duration, error) {
+func warmUp(ctx context.Context, c *bblfsh.Client, language string, path string) (time.Duration, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}
 
 	start := time.Now()
-	_, _, err = c.NewParseRequest().Context(ctx).Language(driver).Content(string(data)).UAST()
+	_, _, err = c.NewParseRequest().Context(ctx).Language(language).Content(string(data)).UAST()
 
 	return time.Since(start), err
 }
 
-func benchFile(ctx context.Context, c *bblfsh.Client, driver string, path string) (*testing.BenchmarkResult, error) {
+func benchFile(ctx context.Context, c *bblfsh.Client, language string, path string) (*testing.BenchmarkResult, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
 	res := testing.Benchmark(bench(func() {
-		_, _, err := c.NewParseRequest().Context(ctx).Language(driver).Content(string(data)).UAST()
+		_, _, err := c.NewParseRequest().Context(ctx).Language(language).Content(string(data)).UAST()
 		if err != nil {
 			panic(err)
 		}

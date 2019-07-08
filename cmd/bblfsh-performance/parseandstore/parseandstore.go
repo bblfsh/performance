@@ -12,7 +12,7 @@ import (
 // Cmd return configured parse-and-store command
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "parse-and-store [--driver=<language>] [--commit=<commit-id>] <file ...>",
+		Use:     "parse-and-store [--language=<language>] [--commit=<commit-id>] <file ...>",
 		Aliases: []string{"pas", "parse-and-dump"},
 		Args:    cobra.MinimumNArgs(1),
 		Short:   "parse file(s) with golang benchmark output and store it in influx db",
@@ -24,15 +24,15 @@ export INFLUX_USERNAME=""
 export INFLUX_PASSWORD=""
 export INFLUX_DB=mydb
 export INFLUX_MEASUREMENT=benchmark
-bblfsh-performance parse-and-store --driver=go --commit=3d9682b /var/log/bench0 /var/log/bench1`,
+bblfsh-performance parse-and-store --language=go --commit=3d9682b /var/log/bench0 /var/log/bench1`,
 		RunE: util.RunESilenced(func(cmd *cobra.Command, args []string) error {
-			driver, _ := cmd.Flags().GetString("driver")
+			language, _ := cmd.Flags().GetString("language")
 			commit, _ := cmd.Flags().GetString("commit")
-			c, err := storage.NewClient(driver, commit)
-			defer c.Close()
+			c, err := storage.NewClient()
 			if err != nil {
 				return err
 			}
+			defer c.Close()
 
 			// TODO(lwsanty): parallelize
 			for _, p := range args {
@@ -40,7 +40,11 @@ bblfsh-performance parse-and-store --driver=go --commit=3d9682b /var/log/bench0 
 				if err != nil {
 					return err
 				}
-				if err := c.Dump(benchmarks...); err != nil {
+				if err := c.Dump(map[string]string{
+					"language": language,
+					"commit":   commit,
+					"level":    util.TransformationsLevel,
+				}, benchmarks...); err != nil {
 					return err
 				}
 			}
@@ -51,7 +55,7 @@ bblfsh-performance parse-and-store --driver=go --commit=3d9682b /var/log/bench0 
 
 	// TODO(lwsanty): reuse this flags for several commands maybe?
 	flags := cmd.Flags()
-	flags.StringP("driver", "d", "", "name of the language current driver relates to")
+	flags.StringP("language", "l", "", "name of the language to be tested")
 	flags.StringP("commit", "c", "", "commit id that's being tested and will be used as a tag in performance report")
 
 	return cmd
