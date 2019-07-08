@@ -53,6 +53,10 @@ func NewClient() (*InfluxClient, error) {
 func (c *InfluxClient) Dump(tags map[string]string, benchmarks ...*parse.Benchmark) error {
 	wrapErr := func(err error) error { return errDumpFailed.Wrap(err) }
 
+	if tags == nil {
+		tags = make(map[string]string)
+	}
+
 	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
 		Database:  c.influxConfig.Db,
 		Precision: "s",

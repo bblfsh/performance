@@ -43,7 +43,7 @@ bblfsh-performance parse-and-store --language=go --commit=3d9682b /var/log/bench
 				if err := c.Dump(map[string]string{
 					"language": language,
 					"commit":   commit,
-					"level":    util.TransformationsLevel,
+					"level":    util.TransformsLevel,
 				}, benchmarks...); err != nil {
 					return err
 				}

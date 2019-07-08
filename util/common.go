@@ -12,9 +12,9 @@ import (
 type RunE func(cmd *cobra.Command, args []string) error
 
 const (
-	BblfshdLevel         = "bblfshd"
-	DriverLevel          = "driver"
-	TransformationsLevel = "transformations"
+	BblfshdLevel    = "bblfshd"
+	DriverLevel     = "driver"
+	TransformsLevel = "transforms"
 )
 
 // TODO(lwsanty): https://github.com/spf13/cobra/issues/340
