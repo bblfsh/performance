@@ -1,6 +1,7 @@
 package util
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -50,4 +51,11 @@ func WrapErr(err error, kinds ...*errors.Kind) error {
 		err = k.Wrap(err)
 	}
 	return err
+}
+
+func GetEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }

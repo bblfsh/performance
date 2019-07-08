@@ -11,13 +11,13 @@ import (
 	"gopkg.in/src-d/go-log.v1"
 )
 
-// TODO maybe we need to run container in stateless mode and install driver version that we want
 const (
-	image = "bblfsh/bblfshd"
-	tag   = "latest-drivers"
-
-	containerName = "bblfshd-perf"
-	port          = "9432"
+	// TODO(lwsanty): maybe we need to run container in stateless mode and install driver version that we want
+	// bblfshd default configuration
+	bblfshdImage     = "bblfsh/bblfshd"
+	bblfshdTag       = "latest-drivers"
+	bblfshdContainer = "bblfshd-perf"
+	bblfshdPort      = "9432"
 )
 
 var (
@@ -33,34 +33,37 @@ func Run() (string, func(), error) {
 		return "", nil, wrapErr(err, errConnectToDockerFailed)
 	}
 
+	tag := util.GetEnv("BBLFSHD_TAG", bblfshdTag)
+	log.Debugf("tag set: %s\n", tag)
 	resource, err := pool.RunWithOptions(
 		&dockertest.RunOptions{
-			Name:         containerName,
-			Repository:   image,
+			Name:         bblfshdContainer,
+			Repository:   bblfshdImage,
 			Tag:          tag,
 			Privileged:   true,
-			ExposedPorts: []string{port},
+			ExposedPorts: []string{bblfshdPort},
 			PortBindings: map[docker.Port][]docker.PortBinding{
-				port: {{HostPort: port}},
+				bblfshdPort: {{HostPort: bblfshdPort}},
 			},
 		})
 	if err != nil {
 		return "", nil, wrapErr(err, errResourceStartFailed)
 	}
 
-	ip := resource.GetBoundIP(resource.Container.ID)
+	addr := resource.GetHostPort(bblfshdPort + "/tcp")
+	log.Debugf("addr used: %s", addr)
 	if err := pool.Retry(func() error {
-		conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, port), time.Second/4)
+		conn, err := net.DialTimeout("tcp", addr, time.Second/4)
 		if err == nil {
-			_ = conn.Close()
+			conn.Close()
 			return nil
 		}
 		return nil
 	}); err != nil {
-		return "", nil, wrapErr(errPortWaitTimeout.New(port))
+		return "", nil, wrapErr(errPortWaitTimeout.New(bblfshdPort))
 	}
 
-	return "localhost:" + port, func() {
+	return addr, func() {
 		if err := pool.Purge(resource); err != nil {
 			log.Errorf(err, "could not purge resource: %s", resource.Container.Name)
 		}

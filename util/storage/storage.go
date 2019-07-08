@@ -27,10 +27,12 @@ type Config struct {
 }
 
 type influxConfig struct {
-	Address     string
-	Username    string
-	Password    string
-	Db          string
+	Address  string
+	Username string
+	Password string
+	Db       string
+	// The measurement acts as a container for tags, fields, and the time column, and the measurement name is the description of the data that are stored in the associated fields.
+	// Measurement names are strings, and, for any SQL users out there, a measurement is conceptually similar to a table.
 	Measurement string
 }
 
@@ -80,14 +82,11 @@ func (c *InfluxClient) Dump(benchmarks ...*parse.Benchmark) error {
 		}
 
 		fields := map[string]interface{}{
-			"n":         b.N,
-			"ns_per_op": b.NsPerOp,
+			"n":        b.N,
+			"per_op_s": b.NsPerOp / 1e9,
 			// https://github.com/influxdata/influxdb/issues/7801
-			"bytes_alloc_per_op": int(b.AllocedBytesPerOp),
-			"allocs_per_op":      int(b.AllocsPerOp),
-			//"mb/s":               b.MBPerS,
-			//"measured":       b.Measured,
-			//"ord":            b.Ord,
+			"per_op_bytes_alloc": int(b.AllocedBytesPerOp),
+			"per_op_alloc":       int(b.AllocsPerOp),
 		}
 
 		point, err := client.NewPoint(
@@ -122,7 +121,11 @@ func influxDBClient(conf influxConfig) (client.Client, error) {
 }
 
 func parseBenchmarkName(name string) string {
-	name = filepath.Base(name)
+	spl := strings.SplitAfterN(name, "/", -1)
+	if len(spl) == 0 {
+		return name
+	}
+	name = spl[len(spl)-1]
 	for _, s := range []string{"-", "."} {
 		name = strings.Split(filepath.Base(name), s)[0]
 	}
