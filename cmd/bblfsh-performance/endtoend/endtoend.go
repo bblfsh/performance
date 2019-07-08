@@ -28,6 +28,7 @@ var (
 	errWarmUpFailed    = errors.NewKind("warmup for file %s has failed: %v")
 )
 
+// TODO(lwsanty): https://github.com/bblfsh/performance/issues/2
 // Cmd return configured end to end command
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
