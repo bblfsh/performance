@@ -13,6 +13,7 @@ import (
 
 const envPrefix = "influx"
 
+// InfluxClient embeds influxdb client itself and also contains the configuration info
 type InfluxClient struct {
 	client.Client
 	influxConfig influxConfig
@@ -33,6 +34,8 @@ var (
 	errDumpFailed      = errors.NewKind("cannot dump batch points")
 )
 
+// TODO(lwsanty): client should become interface in the future to support several storages
+// NewClient is a constructor for InfluxClient, uses environment variables to get influxConfig
 func NewClient() (*InfluxClient, error) {
 	var influxConfig influxConfig
 	if err := envconfig.Process(envPrefix, &influxConfig); err != nil {
@@ -50,6 +53,7 @@ func NewClient() (*InfluxClient, error) {
 	}, nil
 }
 
+// Dump stores given benchmark results with tags to influxdb
 func (c *InfluxClient) Dump(tags map[string]string, benchmarks ...*parse.Benchmark) error {
 	wrapErr := func(err error) error { return errDumpFailed.Wrap(err) }
 

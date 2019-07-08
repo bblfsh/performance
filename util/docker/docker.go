@@ -26,6 +26,8 @@ var (
 	errPortWaitTimeout       = errors.NewKind("could not wait until port %d is enabled")
 )
 
+// RunBblfshd pulls and runs bblfshd container with a given tag, waits until the port is ready and returns
+// endpoint address and a closer that performs post-cleanup
 func RunBblfshd(tag string) (string, func(), error) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
