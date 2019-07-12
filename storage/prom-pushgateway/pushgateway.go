@@ -47,12 +47,13 @@ func (c *promClient) Dump(tags map[string]string, benchmarks ...performance.Benc
 	log.Debugf("getting metrics")
 	metrics := getMetrics(labels)
 	for _, b := range benchmarks {
-		tmpValues := append([]string{b.Name}, values...)
+		bench := b.Benchmark
+		tmpValues := append([]string{bench.Name}, values...)
 
 		log.Debugf("observing for the benchmark: %+v", b)
-		metrics[storage.PerOpSeconds].WithLabelValues(tmpValues...).Observe(float64(time.Duration(b.NsPerOp).Seconds()))
-		metrics[storage.PerOpAllocBytes].WithLabelValues(tmpValues...).Observe(float64(b.AllocedBytesPerOp))
-		metrics[storage.PerOpAllocs].WithLabelValues(tmpValues...).Observe(float64(b.AllocsPerOp))
+		metrics[storage.PerOpSeconds].WithLabelValues(tmpValues...).Observe(time.Duration(bench.NsPerOp).Seconds())
+		metrics[storage.PerOpAllocBytes].WithLabelValues(tmpValues...).Observe(float64(bench.AllocedBytesPerOp))
+		metrics[storage.PerOpAllocs].WithLabelValues(tmpValues...).Observe(float64(bench.AllocsPerOp))
 	}
 
 	log.Debugf("adding metrics to the pusher")

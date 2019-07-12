@@ -1,6 +1,7 @@
 package performance
 
 import (
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/benchmark/parse"
 	"gopkg.in/src-d/go-errors.v1"
+	"gopkg.in/src-d/go-log.v1"
 )
 
 // RunE is a type that represents a standard Run function for cobra commands
@@ -22,6 +24,8 @@ const (
 	// TransformsLevel is a metrics tag that represents benchmarks being run over transformations layer
 	TransformsLevel = "transforms"
 )
+
+var errCmdFailed = errors.NewKind("command failed: %v, output: %v")
 
 // Benchmark is a wrapper around parse.Benchmark and serves for formatting and arranging data before storing
 type Benchmark struct {
@@ -110,4 +114,20 @@ func SplitStringMap(m map[string]string) ([]string, []string) {
 	}
 
 	return keys, values
+}
+
+// ExecCmd executes the specified Bash script. If execution fails, the error contains
+// the combined output from stdout and stderr of the script.
+// Do not use this for scripts that produce a large volume of output.
+func ExecCmd(command string) error {
+	cmd := exec.Command("bash")
+	cmd.Stdin = strings.NewReader(command)
+
+	data, err := cmd.CombinedOutput()
+	log.Debugf("command output %v", string(data))
+	if err != nil {
+		return errCmdFailed.New(err, string(data))
+	}
+
+	return nil
 }

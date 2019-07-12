@@ -22,14 +22,21 @@ import (
 	"gopkg.in/src-d/go-log.v1"
 )
 
-const prefix = "bench_"
+const (
+	// fileFilterPrefix is a fileFilterPrefix of file that would be filtered from the list of files in a directory.
+	// Currently we use benchmark fixtures, file name pattern in this case is bench_*.${extension}
+	fileFilterPrefix = "bench_"
+
+	bblfshDefaultConfTag = "latest-drivers"
+)
 
 var (
-	errGrpcClient      = errors.NewKind("cannot get grpc client")
-	errGetFiles        = errors.NewKind("cannot get files")
-	errBenchmark       = errors.NewKind("cannot perform benchmark over the file %v: %v")
-	errNoFilesDetected = errors.NewKind("no files detected")
-	errWarmUpFailed    = errors.NewKind("warmup for file %v has failed: %v")
+	errGRPCClient                = errors.NewKind("cannot get grpc client")
+	errGetFiles                  = errors.NewKind("cannot get files")
+	errBenchmark                 = errors.NewKind("cannot perform benchmark over the file %v: %v")
+	errNoFilesDetected           = errors.NewKind("no files detected")
+	errWarmUpFailed              = errors.NewKind("warmup for file %v has failed: %v")
+	errCannotInstallCustomDriver = errors.NewKind("custom driver cannot be installed: %v")
 )
 
 // TODO(lwsanty): https://github.com/bblfsh/performance/issues/2
@@ -56,12 +63,14 @@ export INFLUX_USERNAME=""
 export INFLUX_PASSWORD=""
 export INFLUX_DB=mydb
 export INFLUX_MEASUREMENT=benchmark
-bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" --storage="influxdb" /var/testdata/benchmarks`,
+bblfsh-performance end-to-end --language=go --commit=3d9682b --filter-prefix="bench_" --extension=".go" --storage="influxdb" /var/testdata/benchmarks`,
 		RunE: performance.RunESilenced(func(cmd *cobra.Command, args []string) error {
 			language, _ := cmd.Flags().GetString("language")
 			commit, _ := cmd.Flags().GetString("commit")
 			extension, _ := cmd.Flags().GetString("extension")
 			stor, _ := cmd.Flags().GetString("storage")
+			filterPrefix, _ := cmd.Flags().GetString("filter-prefix")
+			customDriver, _ := cmd.Flags().GetBool("custom-driver")
 
 			if _, err := storage.ValidateKind(stor); err != nil {
 				return err
@@ -72,12 +81,22 @@ bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" -
 			if containerAddress == "" {
 				tag, _ := cmd.Flags().GetString("docker-tag")
 				log.Debugf("running bblfshd %s container", tag)
+				if tag == bblfshDefaultConfTag && customDriver {
+					return errCannotInstallCustomDriver.New("bblfshd tag is set to " + bblfshDefaultConfTag + ": all drivers are pre-installed")
+				}
+
 				addr, closer, err := docker.RunBblfshd(tag)
 				if err != nil {
 					return err
 				}
 				defer closer()
 				containerAddress = addr
+
+				if customDriver {
+					if err := docker.InstallDriver(language, commit); err != nil {
+						return errCannotInstallCustomDriver.New(err)
+					}
+				}
 			}
 
 			// prepare context
@@ -98,11 +117,11 @@ bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" -
 
 			client, err := bblfsh.NewClientContext(ctx, containerAddress)
 			if err != nil {
-				return errGrpcClient.Wrap(err)
+				return errGRPCClient.Wrap(err)
 			}
 			defer client.Close()
 
-			files, err := performance.GetFiles(prefix, extension, args...)
+			files, err := performance.GetFiles(filterPrefix, extension, args...)
 			if err != nil {
 				return errGetFiles.Wrap(err)
 			} else if len(files) == 0 {
@@ -150,9 +169,11 @@ bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" -
 	flags.StringP("language", "l", "", "name of the language to be tested")
 	flags.StringP("commit", "c", "", "commit id that's being tested and will be used as a tag in performance report")
 	flags.StringP("extension", "e", "", "file extension to be filtered")
-	flags.StringP("docker-tag", "t", "latest-drivers", "bblfshd docker image tag to be tested")
+	flags.StringP("docker-tag", "t", bblfshDefaultConfTag, "bblfshd docker image tag to be tested")
+	flags.String("filter-prefix", fileFilterPrefix, "file prefix to be filtered")
 	flags.StringP("storage", "s", prom_pushgateway.Kind, "storage kind to store the results"+
 		fmt.Sprintf("(%s, %s, %s)", prom_pushgateway.Kind, influxdb.Kind, file.Kind))
+	flags.Bool("custom-driver", false, "if this flag is set to true CLI pulls corresponding language driver repo's commit, builds docker image and installs it onto the bblfsh container")
 
 	return cmd
 }
