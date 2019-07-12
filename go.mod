@@ -7,6 +7,7 @@ require (
 	github.com/cenkalti/backoff v2.1.1+incompatible // indirect
 	github.com/orourkedd/influxdb1-client v0.0.0-20190326200226-bd3b72602b58
 	github.com/ory/dockertest v3.3.4+incompatible
+	github.com/prometheus/client_golang v1.0.0
 	github.com/spf13/cobra v0.0.5
 	github.com/src-d/envconfig v1.0.0
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect

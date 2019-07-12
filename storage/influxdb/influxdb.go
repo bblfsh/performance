@@ -1,20 +1,26 @@
-package storage
+package influxdb
 
 import (
-	"strings"
 	"time"
+
+	"github.com/bblfsh/performance"
+	"github.com/bblfsh/performance/storage"
 
 	"github.com/orourkedd/influxdb1-client/client"
 	"github.com/src-d/envconfig"
-	"golang.org/x/tools/benchmark/parse"
 	"gopkg.in/src-d/go-errors.v1"
 	"gopkg.in/src-d/go-log.v1"
 )
 
-const envPrefix = "influx"
+// Kind is a string that represents influxdb
+const Kind = "influxdb"
 
-// InfluxClient embeds influxdb client itself and also contains the configuration info
-type InfluxClient struct {
+func init() {
+	storage.Register(Kind, NewClient)
+}
+
+// influxClient embeds influxdb client itself and also contains the configuration info
+type influxClient struct {
 	client.Client
 	influxConfig influxConfig
 }
@@ -34,27 +40,30 @@ var (
 	errDumpFailed      = errors.NewKind("cannot dump batch points")
 )
 
-// TODO(lwsanty): client should become interface in the future to support several storages
-// NewClient is a constructor for InfluxClient, uses environment variables to get influxConfig
-func NewClient() (*InfluxClient, error) {
+// NewClient is a constructor for influxClient, uses environment variables to get influxConfig
+func NewClient() (storage.Client, error) {
 	var influxConfig influxConfig
-	if err := envconfig.Process(envPrefix, &influxConfig); err != nil {
+	if err := envconfig.Process("influx", &influxConfig); err != nil {
 		return nil, err
 	}
 
-	c, err := influxDBClient(influxConfig)
+	c, err := client.NewHTTPClient(client.HTTPConfig{
+		Addr:     influxConfig.Address,
+		Username: influxConfig.Username,
+		Password: influxConfig.Password,
+	})
 	if err != nil {
 		return nil, errGetClientFailed.Wrap(err)
 	}
 
-	return &InfluxClient{
+	return &influxClient{
 		Client:       c,
 		influxConfig: influxConfig,
 	}, nil
 }
 
 // Dump stores given benchmark results with tags to influxdb
-func (c *InfluxClient) Dump(tags map[string]string, benchmarks ...*parse.Benchmark) error {
+func (c *influxClient) Dump(tags map[string]string, benchmarks ...performance.Benchmark) error {
 	wrapErr := func(err error) error { return errDumpFailed.Wrap(err) }
 
 	if tags == nil {
@@ -71,13 +80,13 @@ func (c *InfluxClient) Dump(tags map[string]string, benchmarks ...*parse.Benchma
 
 	eventTime := time.Now()
 	for _, b := range benchmarks {
-		tags["name"] = parseBenchmarkName(b.Name)
+		tags["name"] = b.Name
 		fields := map[string]interface{}{
-			"n":              b.N,
-			"per_op_seconds": b.NsPerOp / 1e9,
+			"n":                  b.N,
+			storage.PerOpSeconds: time.Duration(b.NsPerOp).Seconds(),
 			// https://github.com/influxdata/influxdb/issues/7801
-			"per_op_alloc_bytes": int(b.AllocedBytesPerOp),
-			"per_op_alloc":       int(b.AllocsPerOp),
+			storage.PerOpAllocBytes: int(b.AllocedBytesPerOp),
+			storage.PerOpAllocs:     int(b.AllocsPerOp),
 		}
 
 		point, err := client.NewPoint(
@@ -89,7 +98,7 @@ func (c *InfluxClient) Dump(tags map[string]string, benchmarks ...*parse.Benchma
 		if err != nil {
 			return wrapErr(err)
 		}
-		log.Debugf("batch -> add point %+v\n", point)
+		log.Debugf("batch -> add point %+v", point)
 		bp.AddPoint(point)
 	}
 	if err := c.Write(bp); err != nil {
@@ -99,23 +108,6 @@ func (c *InfluxClient) Dump(tags map[string]string, benchmarks ...*parse.Benchma
 	return nil
 }
 
-func influxDBClient(conf influxConfig) (client.Client, error) {
-	c, err := client.NewHTTPClient(client.HTTPConfig{
-		Addr:     conf.Address,
-		Username: conf.Username,
-		Password: conf.Password,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
-}
-
-func parseBenchmarkName(name string) string {
-	spl := strings.Split(name, "/")
-	name = spl[len(spl)-1]
-	for _, s := range []string{"-", "."} {
-		name = strings.Split(name, s)[0]
-	}
-	return name
+func (c *influxClient) Close() error {
+	return c.Client.Close()
 }
