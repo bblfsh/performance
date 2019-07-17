@@ -28,7 +28,7 @@ deploy:
   skip_cleanup: true
   on:
     branch: ci-integration
-    tags: true
+#    tags: true
 
 after_deploy:
   - DOCKER_PUSH_LATEST=1 make docker-push
