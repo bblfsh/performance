@@ -21,13 +21,13 @@ before_deploy:
   - make packages
 
 deploy:
-  if: branch = ci-integration
   provider: releases
   api_key: $GITHUB_TOKEN
   file_glob: true
   file: build/*.tar.gz
   skip_cleanup: true
   on:
+    branch: ci-integration
     tags: true
 
 after_deploy:
