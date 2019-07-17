@@ -1,5 +1,5 @@
 # TODO(lwsanty): change the base image when infra task #991 is done
-FROM golang:1.12.7
+FROM golang:1.12.7-alpine
 
 RUN apt-get update
 RUN apt-get -y install apt-transport-https ca-certificates curl gnupg2 software-properties-common
