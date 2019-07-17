@@ -30,8 +30,8 @@ deploy:
   file: build/*.tar.gz
   skip_cleanup: true
   on:
-    branch: ci-integration
-#    tags: true
+    branch: master
+    tags: true
 
 after_deploy:
-  - DOCKER_PUSH_LATEST=1 make docker-push
+  - DOCKER_PUSH_MASTER=1 make docker-push-latest-release
