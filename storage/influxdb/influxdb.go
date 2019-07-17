@@ -80,13 +80,14 @@ func (c *influxClient) Dump(tags map[string]string, benchmarks ...performance.Be
 
 	eventTime := time.Now()
 	for _, b := range benchmarks {
-		tags["name"] = b.Name
+		bench := b.Benchmark
+		tags["name"] = bench.Name
 		fields := map[string]interface{}{
-			"n":                  b.N,
-			storage.PerOpSeconds: time.Duration(b.NsPerOp).Seconds(),
+			"n":                  bench.N,
+			storage.PerOpSeconds: time.Duration(bench.NsPerOp).Seconds(),
 			// https://github.com/influxdata/influxdb/issues/7801
-			storage.PerOpAllocBytes: int(b.AllocedBytesPerOp),
-			storage.PerOpAllocs:     int(b.AllocsPerOp),
+			storage.PerOpAllocBytes: int(bench.AllocedBytesPerOp),
+			storage.PerOpAllocs:     int(bench.AllocsPerOp),
 		}
 
 		point, err := client.NewPoint(
