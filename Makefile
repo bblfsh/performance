@@ -2,6 +2,7 @@
 PROJECT = performance
 COMMANDS = cmd/bblfsh-performance
 
+GO_BUILD_ENV = CGO_ENABLED=0
 DOCKER_ORG = bblfsh
 
 # Including ci Makefile
