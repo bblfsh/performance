@@ -17,6 +17,9 @@ install:
   - go mod download
   - go generate ./...
 
+script:
+  - go test -v ./...
+
 before_deploy:
   - make packages
 
