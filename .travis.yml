@@ -32,7 +32,7 @@ deploy:
   on:
 #    branch: master
     branch: ci-integration
-    tags: true
+#    tags: true
 
 after_deploy:
 #  - DOCKER_PUSH_MASTER=1 make docker-push-latest-release
