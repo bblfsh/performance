@@ -42,6 +42,7 @@ func RunBblfshd(tag string) (string, func(), error) {
 			Tag:          tag,
 			Privileged:   true,
 			ExposedPorts: []string{bblfshdPort},
+			Mounts:       []string{"/var/run/docker.sock:/var/run/docker.sock"},
 			PortBindings: map[docker.Port][]docker.PortBinding{
 				bblfshdPort: {{HostPort: bblfshdPort}},
 			},

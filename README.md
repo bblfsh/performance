@@ -1,5 +1,12 @@
 # Babelfish performance testing
 
+## Build
+```bash
+go generate ./...
+cd cmd/bblfsh-performance
+go build
+```
+
 ## Currently supports only 2 commands
 
 ### parse-and-store
@@ -73,13 +80,15 @@ export INFLUX_USERNAME=""
 export INFLUX_PASSWORD=""
 export INFLUX_DB=mydb
 export INFLUX_MEASUREMENT=benchmark
-bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" --storage="influxdb" /var/testdata/benchmarks
+bblfsh-performance end-to-end --language=go --commit=3d9682b --filter-prefix="bench_" --extension=".go" --storage="influxdb" /var/testdata/benchmarks
 
 Flags:
-  -c, --commit string       commit id that's being tested and will be used as a tag in performance report
-  -t, --docker-tag string   bblfshd docker image tag to be tested (default "latest-drivers")
-  -e, --extension string    file extension to be filtered
-  -h, --help                help for end-to-end
-  -l, --language string     name of the language to be tested
-  -s, --storage string      storage kind to store the results(prom, influxdb, file) (default "prom")
+  -c, --commit string          commit id that's being tested and will be used as a tag in performance report
+      --custom-driver          if this flag is set to true CLI pulls corresponding language driver repo's commit, builds docker image and installs it onto the bblfsh container
+  -t, --docker-tag string      bblfshd docker image tag to be tested (default "latest-drivers")
+  -e, --extension string       file extension to be filtered
+      --filter-prefix string   file prefix to be filtered (default "bench_")
+  -h, --help                   help for end-to-end
+  -l, --language string        name of the language to be tested
+  -s, --storage string         storage kind to store the results(prom, influxdb, file) (default "prom")
 ```
