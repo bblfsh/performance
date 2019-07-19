@@ -29,8 +29,7 @@ deploy:
   file: build/*.tar.gz
   skip_cleanup: true
   on:
-    branch: build_docker
-#    tags: true
+    branch: master
 
 after_deploy:
-  - DOCKER_PUSH_LATEST=1 make docker-push
+  - DOCKER_PUSH_MASTER=1 DOCKER_PUSH_LATEST=1 make docker-push
