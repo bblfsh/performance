@@ -33,4 +33,4 @@ deploy:
     tags: true
 
 after_deploy:
-  - DOCKER_PUSH_MASTER=1 make docker-push-latest-release
+  - DOCKER_PUSH_LATEST=1 make docker-push
