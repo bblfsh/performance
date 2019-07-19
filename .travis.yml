@@ -28,8 +28,8 @@ deploy:
   file_glob: true
   file: build/*.tar.gz
   skip_cleanup: true
-#  on:
-#    branch: master
+  on:
+    branch: build_docker
 #    tags: true
 
 after_deploy:
