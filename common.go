@@ -124,7 +124,7 @@ func ExecCmd(command string) error {
 	cmd.Stdin = strings.NewReader(command)
 
 	data, err := cmd.CombinedOutput()
-	log.Debugf("command output %v", string(data))
+	log.Debugf("command output: %v", string(data))
 	if err != nil {
 		return errCmdFailed.New(err, string(data))
 	}
