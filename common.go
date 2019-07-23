@@ -73,16 +73,31 @@ func RunESilenced(f RunE) RunE {
 	}
 }
 
+func stringInSlice(s string, strSlice []string) bool {
+	for _, sl := range strSlice {
+		if strings.HasSuffix(s, sl) {
+			return true
+		}
+	}
+	return false
+}
+
 // GetFiles is a simple "get files by pattern" function
 // Purpose: filter required fixtures
-func GetFiles(pref, ext string, dirs ...string) ([]string, error) {
+func GetFiles(pref string, exclusionSuffixes []string, dirs ...string) ([]string, error) {
 	var res []string
 	for _, d := range dirs {
-		matches, err := filepath.Glob(filepath.Join(d, pref+"*"+ext))
+		matches, err := filepath.Glob(filepath.Join(d, pref+"*"))
 		if err != nil {
 			return nil, err
 		}
-		res = append(res, matches...)
+
+		for _, m := range matches {
+			if stringInSlice(m, exclusionSuffixes) {
+				continue
+			}
+			res = append(res, m)
+		}
 	}
 	return res, nil
 }
