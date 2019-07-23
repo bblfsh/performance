@@ -72,7 +72,7 @@ Full examples of usage scripts are following:
 # for prometheus pushgateway
 export PROM_ADDRESS="localhost:9091"
 export PROM_JOB=pushgateway
-./bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" --storage="prom" /var/testdata/benchmarks
+./bblfsh-performance end-to-end --language=go --commit=3d9682b --filter-prefix="bench_" --exclude-substrings=".legacy",".native",".uast" --storage="prom" /var/testdata/benchmarks
 
 # for influx db
 export INFLUX_ADDRESS="http://localhost:8086"
@@ -80,13 +80,13 @@ export INFLUX_USERNAME=""
 export INFLUX_PASSWORD=""
 export INFLUX_DB=mydb
 export INFLUX_MEASUREMENT=benchmark
-bblfsh-performance end-to-end --language=go --commit=3d9682b --filter-prefix="bench_" --extension=".go" --storage="influxdb" /var/testdata/benchmarks
+bblfsh-performance end-to-end --language=go --commit=3d9682b --filter-prefix="bench_" --exclude-substrings=".legacy",".native",".uast" --storage="influxdb" /var/testdata/benchmarks
 
 Flags:
   -c, --commit string          commit id that's being tested and will be used as a tag in performance report
       --custom-driver          if this flag is set to true CLI pulls corresponding language driver repo's commit, builds docker image and installs it onto the bblfsh container
   -t, --docker-tag string      bblfshd docker image tag to be tested (default "latest-drivers")
-  -e, --extension string       file extension to be filtered
+      --exclude-substrings strings   file name substrings to be excluded (default [.legacy,.native,.uast])
       --filter-prefix string   file prefix to be filtered (default "bench_")
   -h, --help                   help for end-to-end
   -l, --language string        name of the language to be tested
