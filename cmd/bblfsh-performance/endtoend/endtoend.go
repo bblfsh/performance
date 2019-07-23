@@ -55,7 +55,7 @@ Full examples of usage scripts are following:
 # for prometheus pushgateway
 export PROM_ADDRESS="localhost:9091"
 export PROM_JOB=pushgateway
-./bblfsh-performance end-to-end --language=go --commit=3d9682b --extension=".go" --storage="prom" /var/testdata/benchmarks
+./bblfsh-performance end-to-end --language=go --commit=3d9682b --filter-prefix="bench_" --exclude-substrings=".legacy",".native",".uast" --storage="prom" /var/testdata/benchmarks
 
 # for influx db
 export INFLUX_ADDRESS="http://localhost:8086"
@@ -63,11 +63,11 @@ export INFLUX_USERNAME=""
 export INFLUX_PASSWORD=""
 export INFLUX_DB=mydb
 export INFLUX_MEASUREMENT=benchmark
-bblfsh-performance end-to-end --language=go --commit=3d9682b --filter-prefix="bench_" --extension=".go" --storage="influxdb" /var/testdata/benchmarks`,
+bblfsh-performance end-to-end --language=go --commit=3d9682b --filter-prefix="bench_" --exclude-substrings=".legacy",".native",".uast" --storage="influxdb" /var/testdata/benchmarks`,
 		RunE: performance.RunESilenced(func(cmd *cobra.Command, args []string) error {
 			language, _ := cmd.Flags().GetString("language")
 			commit, _ := cmd.Flags().GetString("commit")
-			extension, _ := cmd.Flags().GetString("extension")
+			excludeSubstrings, _ := cmd.Flags().GetStringSlice("exclude-substrings")
 			stor, _ := cmd.Flags().GetString("storage")
 			filterPrefix, _ := cmd.Flags().GetString("filter-prefix")
 			customDriver, _ := cmd.Flags().GetBool("custom-driver")
@@ -121,7 +121,7 @@ bblfsh-performance end-to-end --language=go --commit=3d9682b --filter-prefix="be
 			}
 			defer client.Close()
 
-			files, err := performance.GetFiles(filterPrefix, extension, args...)
+			files, err := performance.GetFiles(filterPrefix, excludeSubstrings, args...)
 			if err != nil {
 				return errGetFiles.Wrap(err)
 			} else if len(files) == 0 {
@@ -168,7 +168,7 @@ bblfsh-performance end-to-end --language=go --commit=3d9682b --filter-prefix="be
 	flags := cmd.Flags()
 	flags.StringP("language", "l", "", "name of the language to be tested")
 	flags.StringP("commit", "c", "", "commit id that's being tested and will be used as a tag in performance report")
-	flags.StringP("extension", "e", "", "file extension to be filtered")
+	flags.StringSlice("exclude-substrings", []string{".legacy", ".native", ".uast"}, "file name substrings to be excluded")
 	flags.StringP("docker-tag", "t", bblfshDefaultConfTag, "bblfshd docker image tag to be tested")
 	flags.String("filter-prefix", fileFilterPrefix, "file prefix to be filtered")
 	flags.StringP("storage", "s", prom_pushgateway.Kind, "storage kind to store the results"+

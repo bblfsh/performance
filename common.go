@@ -75,14 +75,23 @@ func RunESilenced(f RunE) RunE {
 
 // GetFiles is a simple "get files by pattern" function
 // Purpose: filter required fixtures
-func GetFiles(pref, ext string, dirs ...string) ([]string, error) {
+func GetFiles(pref string, exclusionSubstrings []string, dirs ...string) ([]string, error) {
 	var res []string
 	for _, d := range dirs {
-		matches, err := filepath.Glob(filepath.Join(d, pref+"*"+ext))
+		matches, err := filepath.Glob(filepath.Join(d, pref+"*"))
 		if err != nil {
 			return nil, err
 		}
-		res = append(res, matches...)
+
+	LOOP:
+		for _, m := range matches {
+			for _, e := range exclusionSubstrings {
+				if strings.Contains(m, e) {
+					continue LOOP
+				}
+			}
+			res = append(res, m)
+		}
 	}
 	return res, nil
 }
