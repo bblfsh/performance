@@ -7,11 +7,11 @@ import (
 
 const (
 	// PerOpSeconds represents metric of seconds per operation
-	PerOpSeconds = "per_op_seconds"
+	PerOpSeconds = "bblfsh_bench_seconds"
 	// PerOpAllocBytes represents metric of bytes allocated per operation
-	PerOpAllocBytes = "per_op_alloc_bytes"
+	PerOpAllocBytes = "bblfsh_bench_allocs_bytes"
 	// PerOpAllocs represents metric of allocations per operation
-	PerOpAllocs = "per_op_allocs"
+	PerOpAllocs = "bblfsh_bench_allocs"
 )
 
 // Constructor is a type that represents function of default storage client Constructor
