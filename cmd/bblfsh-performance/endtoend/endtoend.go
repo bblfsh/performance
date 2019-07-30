@@ -143,7 +143,7 @@ bblfsh-performance end-to-end --language=go --commit=3d9682b --filter-prefix="be
 				if err != nil {
 					return errBenchmark.New(f, err)
 				}
-				benchmarks = append(benchmarks, performance.BenchmarkResultToBenchmark(f, bRes))
+				benchmarks = append(benchmarks, performance.BenchmarkResultToBenchmark(f, bRes, filterPrefix))
 			}
 
 			// store data
