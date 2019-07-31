@@ -33,25 +33,28 @@ type Benchmark struct {
 }
 
 // NewBenchmark is a constructor for Benchmark
-func NewBenchmark(pb *parse.Benchmark) Benchmark {
-	pb.Name = parseBenchmarkName(pb.Name)
+func NewBenchmark(pb *parse.Benchmark, trimPrefixes ...string) Benchmark {
+	pb.Name = parseBenchmarkName(pb.Name, trimPrefixes...)
 	return Benchmark{*pb}
 }
 
 // BenchmarkResultToBenchmark converts b *testing.BenchmarkResult *parse.Benchmark for further storing
-func BenchmarkResultToBenchmark(name string, b *testing.BenchmarkResult) Benchmark {
+func BenchmarkResultToBenchmark(name string, b *testing.BenchmarkResult, trimPrefixes ...string) Benchmark {
 	return NewBenchmark(&parse.Benchmark{
 		Name:              name,
 		N:                 b.N,
 		NsPerOp:           float64(b.NsPerOp()),
 		AllocedBytesPerOp: uint64(b.AllocedBytesPerOp()),
 		AllocsPerOp:       uint64(b.AllocsPerOp()),
-	})
+	}, trimPrefixes...)
 }
 
 // parseBenchmarkName removes the path and suffixes from benchmark info
 // Example: BenchmarkGoDriver/transform/accumulator_factory-4 -> accumulator_factory
-func parseBenchmarkName(name string) string {
+func parseBenchmarkName(name string, trimPrefixes ...string) string {
+	for _, tp := range trimPrefixes {
+		name = strings.TrimPrefix(name, tp)
+	}
 	if i := strings.LastIndex(name, "/"); i >= 0 {
 		name = name[i+1:]
 	}
