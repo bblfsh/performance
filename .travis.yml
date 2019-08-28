@@ -33,4 +33,5 @@ deploy:
     tags: true
 
 after_deploy:
+  - cd cmd/native-driver-performance/ ; CGO_ENABLED=0 go build -o ../../build/native-driver-performance ; cd ../..
   - DOCKER_PUSH_MASTER=1 make docker-push-latest-release

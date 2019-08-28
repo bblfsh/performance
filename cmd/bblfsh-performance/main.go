@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/bblfsh/performance/cmd/bblfsh-performance/driver"
+	"github.com/bblfsh/performance/cmd/bblfsh-performance/drivernative"
 	"github.com/bblfsh/performance/cmd/bblfsh-performance/endtoend"
 	"github.com/bblfsh/performance/cmd/bblfsh-performance/parseandstore"
 	_ "github.com/bblfsh/performance/storage/file"
@@ -20,7 +22,11 @@ func main() {
 		Short:   "Performance test utilities for bblfshd and drivers",
 	}
 
-	rootCmd.AddCommand(parseandstore.Cmd(), endtoend.Cmd())
+	rootCmd.AddCommand(
+		parseandstore.Cmd(),
+		drivernative.Cmd(),
+		driver.Cmd(),
+		endtoend.Cmd())
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)
