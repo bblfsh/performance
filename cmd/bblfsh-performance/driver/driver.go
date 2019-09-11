@@ -108,8 +108,7 @@ export INFLUX_MEASUREMENT=benchmark
 	flags.StringP("commit", "c", "", "commit id that's being tested and will be used as a tag in performance report")
 	flags.StringSlice("exclude-suffixes", []string{".legacy", ".native", ".uast"}, "file suffixes to be excluded")
 	flags.String("filter-prefix", fileFilterPrefix, "file prefix to be filtered")
-	flags.StringP("storage", "s", prom.Kind, "storage kind to store the results"+
-		fmt.Sprintf("(%s, %s, %s)", prom.Kind, influxdb.Kind, file.Kind))
+	flags.StringP("storage", "s", prom.Kind, fmt.Sprintf("storage kind to store the results(%s, %s, %s)", prom.Kind, influxdb.Kind, file.Kind))
 
 	return cmd
 }

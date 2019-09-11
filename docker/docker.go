@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -75,7 +74,7 @@ func (d *Driver) Upload(ctx context.Context, src, dst string) error {
 	err = d.Pool.Client.StartExec(exec.ID, docker.StartExecOptions{
 		Context:      ctx,
 		InputStream:  f,
-		OutputStream: os.Stdout,
+		OutputStream: os.Stderr,
 		ErrorStream:  os.Stderr,
 	})
 	if err != nil {
@@ -102,18 +101,12 @@ func (d *Driver) GetResults(ctx context.Context, src string) ([]byte, error) {
 	}
 
 	var buf bytes.Buffer
-	w := bufio.NewWriter(&buf)
-
 	err = d.Pool.Client.StartExec(exec.ID, docker.StartExecOptions{
 		Context:      ctx,
-		OutputStream: w,
+		OutputStream: &buf,
 		ErrorStream:  os.Stderr,
 	})
 	if err != nil {
-		return nil, errGetResultsFailed.Wrap(err)
-	}
-
-	if err := w.Flush(); err != nil {
 		return nil, errGetResultsFailed.Wrap(err)
 	}
 
@@ -143,8 +136,7 @@ func (d *Driver) Exec(ctx context.Context, envs []string, cmd ...string) error {
 		Context:      ctx,
 		RawTerminal:  true,
 		Tty:          true,
-		InputStream:  os.Stdin,
-		OutputStream: os.Stdout,
+		OutputStream: os.Stderr,
 		ErrorStream:  os.Stderr,
 	})
 	if err != nil {
@@ -165,11 +157,7 @@ func (d *Driver) Exec(ctx context.Context, envs []string, cmd ...string) error {
 }
 
 // Close removes container
-func (d *Driver) Close() {
-	if err := d.Pool.Purge(d.Resource); err != nil {
-		log.Errorf(err, "could not purge resource: %s", d.Resource.Container.Name)
-	}
-}
+func (d *Driver) Close() { purge(d.Pool, d.Resource) }
 
 // RunBblfshd pulls and runs bblfshd container with a given tag, waits until the port is ready and returns
 // endpoint address and a closer that performs post-cleanup
@@ -198,14 +186,11 @@ func RunBblfshd(tag string) (string, func(), error) {
 	addr := resource.GetHostPort(bblfshdPort + "/tcp")
 	log.Debugf("addr used: %s", addr)
 	if err := wait(pool, addr); err != nil {
+		purge(pool, resource)
 		return "", nil, err
 	}
 
-	return addr, func() {
-		if err := pool.Purge(resource); err != nil {
-			log.Errorf(err, "could not purge resource: %s", resource.Container.Name)
-		}
-	}, nil
+	return addr, func() { purge(pool, resource) }, nil
 }
 
 // RunDriver runs driver of given image and mounts
@@ -235,6 +220,7 @@ func RunDriver(image *Image, mounts ...string) (*Driver, error) {
 	log.Debugf("addr used: %s", addr)
 	log.Debugf("waiting for port")
 	if err := wait(pool, addr); err != nil {
+		purge(pool, resource)
 		return nil, err
 	}
 
@@ -254,6 +240,14 @@ func wait(pool *dockertest.Pool, addr string) error {
 		}
 		return wrapErr(errPortWaitTimeout.New(bblfshdPort))
 	})
+}
+
+func purge(p *dockertest.Pool, resources ...*dockertest.Resource) {
+	for _, r := range resources {
+		if err := p.Purge(r); err != nil {
+			log.Errorf(err, "could not purge resource: %s", r.Container.Name)
+		}
+	}
 }
 
 func wrapErr(err error, kinds ...*errors.Kind) error {
