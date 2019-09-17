@@ -21,11 +21,23 @@ const (
 	BblfshdLevel = "bblfshd"
 	// DriverLevel is a metrics tag that represents benchmarks being run over language driver container
 	DriverLevel = "driver"
+	// DriverNativeLevel is a metrics tag that represents benchmarks being run over native language driver
+	DriverNativeLevel = "driver-native"
 	// TransformsLevel is a metrics tag that represents benchmarks being run over transformations layer
 	TransformsLevel = "transforms"
+
+	// FileFilterPrefix is a fileFilterPrefix of file that would be filtered from the list of files in a directory.
+	// Currently we use benchmark fixtures, file name pattern in this case is bench_*.${extension}
+	FileFilterPrefix = "bench_"
 )
 
-var errCmdFailed = errors.NewKind("command failed: %v, output: %v")
+var (
+	// ErrCannotInstallCustomDriver is used when driver installation process has failed or test conditions
+	// do not allow to install it
+	ErrCannotInstallCustomDriver = errors.NewKind("custom driver cannot be installed: %v")
+
+	errCmdFailed = errors.NewKind("command failed: %v, output: %v")
+)
 
 // Benchmark is a wrapper around parse.Benchmark and serves for formatting and arranging data before storing
 type Benchmark struct {
@@ -148,4 +160,13 @@ func ExecCmd(command string) error {
 	}
 
 	return nil
+}
+
+// Bench wraps given function into function that performs benchmark over it
+func Bench(f func()) func(b *testing.B) {
+	return func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			f()
+		}
+	}
 }
