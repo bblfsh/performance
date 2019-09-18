@@ -25,6 +25,8 @@ const (
 
 	// driver default configuration
 	driverContainer = "driver"
+
+	execTimeoutSeconds = 300
 )
 
 var (
@@ -144,17 +146,25 @@ func (d *Driver) Exec(ctx context.Context, envs []string, cmd ...string) error {
 		return errExecFailed.Wrap(err)
 	}
 
-	inspect, err := d.Pool.Client.InspectExec(exec.ID)
-	if err != nil {
-		return errExecFailed.Wrap(err)
+	log.Debugf("waiting for process to finish")
+	var i int
+	for i < execTimeoutSeconds {
+		inspect, err := d.Pool.Client.InspectExec(exec.ID)
+		if err != nil {
+			return errExecFailed.Wrap(err)
+		}
+		if inspect.Running {
+			i++
+			time.Sleep(time.Second)
+			continue
+		}
+		if inspect.ExitCode != 0 {
+			return errExecFailed.Wrap(fmt.Errorf("code: %v", inspect.ExitCode))
+		}
+		return nil
 	}
 
-	log.Debugf("container: %v\ncode:%v\n%v\n%+v\n", inspect.ContainerID, inspect.ExitCode, inspect.Running, inspect.ProcessConfig)
-	if inspect.ExitCode != 0 {
-		return errExecFailed.Wrap(fmt.Errorf("code: %v", inspect.ExitCode))
-	}
-
-	return nil
+	return errors.NewKind("timeout").New()
 }
 
 // Close removes container
