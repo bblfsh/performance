@@ -1,4 +1,4 @@
-package prom_pushgateway
+package pushgateway
 
 import (
 	"time"

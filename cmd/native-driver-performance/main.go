@@ -23,7 +23,7 @@ func main() {
 	// TODO: fixtures filters and so on
 	fixtures := flag.String("fixtures", "", "path to fixtures directory")
 	resultsFile := flag.String("results", "", "path to file to store benchmark results")
-	filterPrefix := flag.String("filter-prefix", "", "file prefix to be filtered")
+	filterPrefix := flag.String("filter-prefix", performance.FileFilterPrefix, "file prefix to be filtered")
 
 	flag.Parse()
 

@@ -12,17 +12,13 @@ import (
 	"github.com/bblfsh/performance/storage"
 	"github.com/bblfsh/performance/storage/file"
 	"github.com/bblfsh/performance/storage/influxdb"
-	prom_pushgateway "github.com/bblfsh/performance/storage/prom-pushgateway"
+	"github.com/bblfsh/performance/storage/pushgateway"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/src-d/go-log.v1"
 )
 
-const (
-	fileFilterPrefix = performance.FileFilterPrefix
-
-	bblfshDefaultConfTag = "latest-drivers"
-)
+const bblfshDefaultConfTag = "latest-drivers"
 
 // TODO(lwsanty): https://github.com/bblfsh/performance/issues/2
 // Cmd return configured end to end command
@@ -128,9 +124,9 @@ export INFLUX_MEASUREMENT=benchmark
 	flags.StringP("commit", "c", "", "commit id that's being tested and will be used as a tag in performance report")
 	flags.StringSlice("exclude-suffixes", []string{".legacy", ".native", ".uast"}, "file suffixes to be excluded")
 	flags.StringP("docker-tag", "t", bblfshDefaultConfTag, "bblfshd docker image tag to be tested")
-	flags.String("filter-prefix", fileFilterPrefix, "file prefix to be filtered")
-	flags.StringP("storage", "s", prom_pushgateway.Kind, "storage kind to store the results"+
-		fmt.Sprintf("(%s, %s, %s)", prom_pushgateway.Kind, influxdb.Kind, file.Kind))
+	flags.String("filter-prefix", performance.FileFilterPrefix, "file prefix to be filtered")
+	flags.StringP("storage", "s", pushgateway.Kind, "storage kind to store the results"+
+		fmt.Sprintf("(%s, %s, %s)", pushgateway.Kind, influxdb.Kind, file.Kind))
 	flags.Bool("custom-driver", false, "if this flag is set to true CLI pulls corresponding language driver repo's commit, builds docker image and installs it onto the bblfsh container")
 
 	return cmd

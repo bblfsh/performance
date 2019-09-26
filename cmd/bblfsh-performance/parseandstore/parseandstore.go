@@ -8,8 +8,8 @@ import (
 	"github.com/bblfsh/performance/storage"
 	"github.com/bblfsh/performance/storage/file"
 	"github.com/bblfsh/performance/storage/influxdb"
-	"github.com/bblfsh/performance/storage/prom-pushgateway"
 
+	"github.com/bblfsh/performance/storage/pushgateway"
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/benchmark/parse"
 )
@@ -39,6 +39,7 @@ bblfsh-performance parse-and-store --language=go --commit=3d9682b --storage="inf
 		RunE: performance.RunESilenced(func(cmd *cobra.Command, args []string) error {
 			language, _ := cmd.Flags().GetString("language")
 			commit, _ := cmd.Flags().GetString("commit")
+			filterPrefix, _ := cmd.Flags().GetString("filter-prefix")
 			stor, _ := cmd.Flags().GetString("storage")
 
 			c, err := storage.NewClient(stor)
@@ -49,7 +50,7 @@ bblfsh-performance parse-and-store --language=go --commit=3d9682b --storage="inf
 
 			// TODO(lwsanty): parallelize
 			for _, p := range args {
-				benchmarks, err := getBenchmarks(p)
+				benchmarks, err := getBenchmarks(p, filterPrefix)
 				if err != nil {
 					return err
 				}
@@ -70,13 +71,14 @@ bblfsh-performance parse-and-store --language=go --commit=3d9682b --storage="inf
 	flags := cmd.Flags()
 	flags.StringP("language", "l", "", "name of the language to be tested")
 	flags.StringP("commit", "c", "", "commit id that's being tested and will be used as a tag in performance report")
-	flags.StringP("storage", "s", prom_pushgateway.Kind, "storage kind to store the results"+
-		fmt.Sprintf("(%s, %s, %s)", prom_pushgateway.Kind, influxdb.Kind, file.Kind))
+	flags.String("filter-prefix", performance.FileFilterPrefix, "file prefix to be filtered")
+	flags.StringP("storage", "s", pushgateway.Kind, "storage kind to store the results"+
+		fmt.Sprintf("(%s, %s, %s)", pushgateway.Kind, influxdb.Kind, file.Kind))
 
 	return cmd
 }
 
-func getBenchmarks(path string) ([]performance.Benchmark, error) {
+func getBenchmarks(path string, trimPrefixes ...string) ([]performance.Benchmark, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -91,7 +93,7 @@ func getBenchmarks(path string) ([]performance.Benchmark, error) {
 	for _, s := range set {
 		var benchmarkSet []performance.Benchmark
 		for _, b := range s {
-			benchmarkSet = append(benchmarkSet, performance.NewBenchmark(b))
+			benchmarkSet = append(benchmarkSet, performance.NewBenchmark(b, trimPrefixes...))
 		}
 		result = append(result, benchmarkSet...)
 	}
