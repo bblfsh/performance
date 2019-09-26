@@ -62,18 +62,24 @@ func BenchmarkResultToBenchmark(name string, b *testing.BenchmarkResult, trimPre
 }
 
 // parseBenchmarkName removes the path and suffixes from benchmark info
-// Example: BenchmarkGoDriver/transform/accumulator_factory-4 -> accumulator_factory
+// Example1: BenchmarkGoDriver/transform/accumulator_factory-4 -> accumulator_factory
+// Example2: BenchmarkGoDriver/transform/bench_accumulator_factory-4 -> accumulator_factory, where "bench_" is a trimPrefixes
 func parseBenchmarkName(name string, trimPrefixes ...string) string {
-	for _, tp := range trimPrefixes {
-		name = strings.TrimPrefix(name, tp)
+	trim := func(name string) (res string) {
+		for _, tp := range trimPrefixes {
+			if strings.HasPrefix(name, tp) {
+				return strings.TrimPrefix(name, tp)
+			}
+		}
+		return name
 	}
 	if i := strings.LastIndex(name, "/"); i >= 0 {
 		name = name[i+1:]
 	}
 	if i := strings.IndexAny(name, "-."); i >= 0 {
-		return name[:i]
+		return trim(name[:i])
 	}
-	return name
+	return trim(name)
 }
 
 // TODO(lwsanty): https://github.com/spf13/cobra/issues/340

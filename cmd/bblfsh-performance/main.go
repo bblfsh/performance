@@ -10,7 +10,7 @@ import (
 	"github.com/bblfsh/performance/cmd/bblfsh-performance/parseandstore"
 	_ "github.com/bblfsh/performance/storage/file"
 	_ "github.com/bblfsh/performance/storage/influxdb"
-	_ "github.com/bblfsh/performance/storage/prom-pushgateway"
+	_ "github.com/bblfsh/performance/storage/pushgateway"
 
 	"github.com/spf13/cobra"
 )

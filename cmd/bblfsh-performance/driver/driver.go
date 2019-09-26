@@ -12,13 +12,11 @@ import (
 	"github.com/bblfsh/performance/storage"
 	"github.com/bblfsh/performance/storage/file"
 	"github.com/bblfsh/performance/storage/influxdb"
-	prom "github.com/bblfsh/performance/storage/prom-pushgateway"
+	"github.com/bblfsh/performance/storage/pushgateway"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/src-d/go-log.v1"
 )
-
-const fileFilterPrefix = performance.FileFilterPrefix
 
 // Cmd return configured driver-native command
 func Cmd() *cobra.Command {
@@ -107,8 +105,8 @@ export INFLUX_MEASUREMENT=benchmark
 	flags.StringP("language", "l", "", "name of the language to be tested")
 	flags.StringP("commit", "c", "", "commit id that's being tested and will be used as a tag in performance report")
 	flags.StringSlice("exclude-suffixes", []string{".legacy", ".native", ".uast"}, "file suffixes to be excluded")
-	flags.String("filter-prefix", fileFilterPrefix, "file prefix to be filtered")
-	flags.StringP("storage", "s", prom.Kind, fmt.Sprintf("storage kind to store the results(%s, %s, %s)", prom.Kind, influxdb.Kind, file.Kind))
+	flags.String("filter-prefix", performance.FileFilterPrefix, "file prefix to be filtered")
+	flags.StringP("storage", "s", pushgateway.Kind, fmt.Sprintf("storage kind to store the results(%s, %s, %s)", pushgateway.Kind, influxdb.Kind, file.Kind))
 
 	return cmd
 }
